@@ -409,6 +409,56 @@ describe('createV2Setup e2e', () => {
     expect(calls.disposed.length).toBeGreaterThan(0);
   }, 20_000);
 
+  test('MCP defaults preserve host entries on initial and replayed drafts', async () => {
+    const { ctx, calls } = makeMockV2Context(projectDir);
+    let replay: (() => void) | undefined;
+    let entries = new Map<string, Record<string, unknown>>();
+    const hostConfig = {
+      type: 'remote',
+      url: 'https://example.test/mcp',
+      headers: { Authorization: 'Bearer test-token' },
+      timeout: 12345,
+      oauth: { clientId: 'test-client' },
+    };
+    if (!ctx.mcp) throw new Error('missing MCP fixture');
+    ctx.mcp.transform = async (callback) => {
+      replay = () => {
+        callback({
+          list: () => [...entries],
+          get: (name) => entries.get(name),
+          set: (name, config) => {
+            calls.mcpSets.push({ name, config });
+            entries.set(name, config);
+          },
+          update: () => {},
+          remove: () => {},
+        });
+      };
+      entries.set('gh_grep', structuredClone(hostConfig));
+      replay();
+      return { dispose: () => {} };
+    };
+    const cleanup = await createV2Setup()(ctx);
+    try {
+      expect(entries.get('gh_grep')).toEqual(hostConfig);
+      expect(entries.get('context7')).toMatchObject({ type: 'remote' });
+      expect(calls.mcpSets.map((entry) => entry.name)).toEqual(['context7']);
+
+      const hostEntries = new Map<string, Record<string, unknown>>([
+        ['gh_grep', { enabled: false }],
+        ['context7', { type: 'local', command: ['custom-context7'] }],
+        ['custom', { type: 'remote', url: 'https://example.test/custom' }],
+      ]);
+      entries = structuredClone(hostEntries);
+      calls.mcpSets.length = 0;
+      replay?.();
+      expect(entries).toEqual(hostEntries);
+      expect(calls.mcpSets).toEqual([]);
+    } finally {
+      await cleanup();
+    }
+  });
+
   test('bundled skills register through a lazily replayed draft', async () => {
     // Deferred execution previously prevented setup from retaining the
     // registration's explicit cleanup handle.

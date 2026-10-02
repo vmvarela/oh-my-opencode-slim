@@ -2249,6 +2249,9 @@ export function createV2Setup(): (ctx: V2Context) => Promise<V2Cleanup> {
             }
             hostMcpSnapshot = Object.fromEntries(configured);
             for (const [name, config] of Object.entries(mcps)) {
+              // Preserve host entries as a whole, just like the v1 config
+              // hook. Re-evaluate on every draft replay, not only at setup.
+              if (Object.hasOwn(hostMcpSnapshot, name)) continue;
               draft.set(name, adaptMcpServer(config));
             }
             if (pendingAgentDraft) finalizeAgentDraft(pendingAgentDraft);

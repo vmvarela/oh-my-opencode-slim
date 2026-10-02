@@ -1871,8 +1871,10 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
           ? (opencodeConfig.mcp as Record<string, unknown>)
           : {};
       opencodeConfig.mcp = {
-        ...currentMcpConfig,
         ...structuredClone(registry.managedMcpConfig),
+        // Built-ins are defaults; preserve complete host entries, including
+        // local replacements and explicit { enabled: false } entries.
+        ...currentMcpConfig,
       };
       recordTuiAgentModels(
         {

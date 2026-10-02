@@ -3527,6 +3527,56 @@ describe('plugin config model inheritance', () => {
     }
   });
 
+  test('MCP defaults preserve complete host entries across config replays', async () => {
+    const hooks = await loadConfiguredPlugin({});
+    const hostMcps = {
+      gh_grep: {
+        type: 'remote',
+        url: 'https://example.test/mcp',
+        headers: { Authorization: 'Bearer test-token' },
+        timeout: 12345,
+        oauth: { clientId: 'test-client' },
+      },
+      context7: {
+        type: 'local',
+        command: ['custom-context7'],
+        environment: { TEST: 'value' },
+      },
+      custom: { enabled: false },
+    };
+    const hostConfig = { agent: {}, mcp: structuredClone(hostMcps) };
+    try {
+      await hooks.config?.(hostConfig);
+      expect(hostConfig.mcp).toEqual(hostMcps);
+      await hooks.config?.(hostConfig);
+      expect(hostConfig.mcp).toEqual(hostMcps);
+    } finally {
+      await hooks.dispose?.();
+    }
+  });
+
+  for (const disabledMcps of [[], ['gh_grep', 'context7']]) {
+    test(`MCP defaults respect disabled host entries (${disabledMcps.join(',')})`, async () => {
+      const hooks = await loadConfiguredPlugin({ disabled_mcps: disabledMcps });
+      const hostConfig: Record<string, unknown> = {
+        agent: {},
+        mcp: { gh_grep: { enabled: false } },
+      };
+      try {
+        await hooks.config?.(hostConfig);
+        const mcps = hostConfig.mcp as Record<string, unknown>;
+        expect(mcps.gh_grep).toEqual({ enabled: false });
+        if (disabledMcps.length === 0) {
+          expect(mcps.context7).toMatchObject({ type: 'remote' });
+        } else {
+          expect(mcps).not.toHaveProperty('context7');
+        }
+      } finally {
+        await hooks.dispose?.();
+      }
+    });
+  }
+
   test('repeated config hooks reproject the first owned registry snapshot', async () => {
     const hooks = await loadConfiguredPlugin({
       agents: { explorer: { model: ['plugin/first', 'plugin/next'] } },

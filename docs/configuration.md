@@ -54,6 +54,21 @@ In an expanded agent list, `⚰` marks a stopped session (no terminal result); o
 
 ---
 
+### Built-in MCP precedence
+
+On OpenCode v1 and v2, built-in MCPs (`context7` and `gh_grep`) are
+defaults: the plugin only supplies entries whose names are absent from the
+host MCP configuration. Define an entry in OpenCode's `opencode.json` or
+`opencode.jsonc` to replace a built-in server. The entire entry is preserved,
+including its URL, headers, timeout, OAuth settings, or local command;
+fields from the built-in definition are not merged into it.
+
+An explicit `{ "enabled": false }` entry is also preserved. You do not need
+to add a server to `disabled_mcps` just to customize its connection settings.
+`disabled_mcps` prevents built-in injection and excludes those names from
+plugin agent MCP grants; it does not delete user-defined host MCP entries.
+Per-agent MCP permissions still apply independently of connection settings.
+
 ## Prompt Overriding
 
 Customize agent prompts without modifying source code. Create markdown files in `~/.config/opencode/oh-my-opencode-slim/`:
@@ -216,7 +231,7 @@ an MCP tool remains authoritative.
 | `backgroundJobs.sameProviderPolicy` | object | `{}` | Opt-in per-provider policy keyed by provider ID; the only value is `"foreground"`. When the parent session's current model and the child agent's resolved model both resolve to a configured provider, an explicit background call (`task(..., background: true)` on v1, `subagent(..., background: true)` on v2) is converted to the existing foreground execution path. Unconfigured, different, or undeterminable providers keep background behavior. See [Background Job Management](#background-job-management). |
 | `backgroundJobs.waitForUserGuard` | boolean | `true` | When true, intercepts `wait_for_user` calls while background tasks are still running and the orchestrator wake scheduler is enabled, returning guidance to end the turn instead of blocking on manual input. See [Background Job Management](#background-job-management). |
 | `backgroundJobs.boardInjection` | boolean | `true` | When false, the Background Job Board reminder is never injected into prompts. Background task tracking, wake, and task_status all keep working; the orchestrator simply no longer passively sees the board. See [Background Job Management](#background-job-management). |
-| `disabled_mcps` | string[] | `[]` | MCP server IDs to disable globally |
+| `disabled_mcps` | string[] | `[]` | Built-in MCP server IDs to skip injecting and exclude from plugin agent MCP grants; user-defined host MCP entries are preserved |
 | `disabled_tools` | string[] | `[]` | Slim tool names to disable globally. Disabled Slim tools are not registered with OpenCode and cannot be used by agents; OpenCode built-in tools are not affected |
 | `disabled_skills` | string[] | `[]` | Skill names to disable globally. Disabled skills are not granted to agents, and disabled bundled skills are not registered; listing `reflect` here also disables the `/reflect` command |
 | `disabled_hooks` | string[] | `[]` | Hook names to disable globally: `"phase-reminder"` stops orchestrator phase-reminder injection; `"foreground-fallback"` disables automatic foreground model fallback, same effect as `fallback.enabled = false`. Unknown values are stripped with a warning when the config loads; a value consisting only of unknown names is treated as unset, so a lower config layer's list still applies |
