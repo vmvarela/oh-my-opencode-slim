@@ -445,13 +445,14 @@ describe('createV2Setup e2e', () => {
       expect(calls.mcpSets.map((entry) => entry.name)).toEqual(['context7']);
 
       const hostEntries = new Map<string, Record<string, unknown>>([
-        ['gh_grep', { enabled: false }],
+        ['gh_grep', { ...hostConfig, disabled: true }],
         ['context7', { type: 'local', command: ['custom-context7'] }],
         ['custom', { type: 'remote', url: 'https://example.test/custom' }],
       ]);
       entries = structuredClone(hostEntries);
       calls.mcpSets.length = 0;
-      replay?.();
+      if (!replay) throw new Error('MCP transform callback was not registered');
+      replay();
       expect(entries).toEqual(hostEntries);
       expect(calls.mcpSets).toEqual([]);
     } finally {
